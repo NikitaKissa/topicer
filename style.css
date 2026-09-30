@@ -49,7 +49,7 @@ body {
 
 .app {
     width: 100%;
-    max-width: 38rem;
+    max-width: 55rem;
     display: flex;
     flex-direction: column;
     align-items: center;

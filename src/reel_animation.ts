@@ -3,11 +3,11 @@ import type { SpinResult } from "./types";
 
 export const MIN_SPIN_ROWS = 36;
 
-const ACCEL_MS = 450;    // разгон
-const TOTAL_MS = 3800;   // разгон + быстрая фаза + торможение
-const DECEL_MS = 1700;   // торможение
-const SETTLE_MS = 320;   // возврат после лёгкого перелёта
-const OVERSHOOT_ROWS = 0.14;
+const ACCEL_MS = 650;    // разгон
+const TOTAL_MS = 6800;   // разгон + быстрая фаза + торможение
+const DECEL_MS = 4700;   // торможение
+const SETTLE_MS = 500;   // возврат после лёгкого перелёта
+const OVERSHOOT_ROWS = 0.16;
 
 const easeOutCubic = (u: number): number => 1 - (1 - u) ** 3;
 const easeInOutSine = (u: number): number => -(Math.cos(Math.PI * u) - 1) / 2;

@@ -63,7 +63,6 @@
     get itemHeight() {
       return this.height;
     }
-    /** Создаёт DOM один раз. Длины хватает на любой spin длиной до minSpinRows + n строк. */
     setTopics(topics, minSpinRows) {
       this.topics = topics;
       const n = topics.length;
@@ -94,14 +93,12 @@
     topicAt(index) {
       return this.topics[index];
     }
-    /** translateY, при котором строка `row` стоит в центре окна. */
     translateFor(row) {
       return (PAD_ROWS - row) * this.height;
     }
     applyTranslate(y) {
       this.track.style.transform = `translate3d(0, ${y}px, 0)`;
     }
-    /** Мгновенно ставит ленту на строку (без анимации). */
     setRow(row) {
       this.row = row;
       this.applyTranslate(this.translateFor(row));
@@ -115,7 +112,6 @@
       this.resultEl?.classList.remove("is-result");
       this.resultEl = null;
     }
-    /** Пересчитывает высоту строки и восстанавливает позицию (при resize). */
     refresh() {
       this.measure();
       this.setRow(this.row);
@@ -130,11 +126,11 @@
 
   // src/reel_animation.ts
   var MIN_SPIN_ROWS = 36;
-  var ACCEL_MS = 450;
-  var TOTAL_MS = 3800;
-  var DECEL_MS = 1700;
-  var SETTLE_MS = 320;
-  var OVERSHOOT_ROWS = 0.14;
+  var ACCEL_MS = 650;
+  var TOTAL_MS = 6800;
+  var DECEL_MS = 4700;
+  var SETTLE_MS = 500;
+  var OVERSHOOT_ROWS = 0.16;
   var easeOutCubic = (u) => 1 - (1 - u) ** 3;
   var easeInOutSine = (u) => -(Math.cos(Math.PI * u) - 1) / 2;
   function planSteps(currentIndex, target, n) {
@@ -203,10 +199,6 @@
         requestAnimationFrame(frame);
       });
     }
-    /**
-     * Бесшовная нормализация: тема на endRow переносится на "домашнюю" строку
-     * с тем же индексом. Тексты идентичны, высота строки одна — картинка не меняется.
-     */
     finish(endRow) {
       const { reel } = this;
       const index = reel.topicIndexAt(endRow);
