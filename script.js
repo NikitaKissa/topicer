@@ -331,7 +331,7 @@
     try {
       topics = await loadTopics("./topics.txt");
     } catch (error) {
-      showError(error instanceof Error ? error.message : "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0442\u0435\u043C\u044B.");
+      showError(error instanceof Error ? error.message : "\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0438\u0442\u0438 \u0442\u0435\u043C\u0438.");
       return;
     }
     if (topics.length < MIN_TOPICS) {
@@ -342,7 +342,7 @@
     const soundBtn = byId("sound-toggle");
     const renderSound = () => {
       soundBtn.setAttribute("aria-pressed", String(sound.enabled));
-      soundBtn.textContent = sound.enabled ? "\u0417\u0432\u0443\u043A: \u0432\u043A\u043B" : "\u0417\u0432\u0443\u043A: \u0432\u044B\u043A\u043B";
+      soundBtn.textContent = sound.enabled ? "\u0417\u0432\u0443\u043A: \u0443\u0432\u0456\u043C\u043A" : "\u0417\u0432\u0443\u043A: \u0432\u0438\u043C\u043A";
     };
     soundBtn.addEventListener("click", () => {
       sound.setEnabled(!sound.enabled);
