@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Рулетка тем для розмов</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="./script.js" defer></script>
+</head>
+<body>
+    <main class="app" id="app" data-state="loading">
+        <header class="app__header">
+            <h1 class="app__title">Рулетка тем</h1>
+            <p class="app__lead">Натисніть кнопку — стрічка вибере тему</p>
+        </header>
+
+        <section class="reel" aria-label="Рулетка тем">
+            <div class="reel__viewport" id="reel-viewport">
+                <div class="reel__track" id="reel-track"></div>
+            </div>
+        </section>
+
+        <button class="spin" id="spin-button" type="button" disabled>Крутити</button>
+        <p class="status" id="status" role="status">Завантажую теми…</p>
+
+        <section class="result" aria-labelledby="result-label">
+            <h2 class="result__label" id="result-label">Випала тема</h2>
+            <p class="result__text" id="result" aria-live="polite" aria-atomic="true">Поки нічого не випало.</p>
+        </section>
+    </main>
+</body>
+</html>
