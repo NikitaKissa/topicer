@@ -3,6 +3,7 @@ import { MIN_TOPICS, getRandomTopicIndex } from "./topics";
 import { Reel } from "./reel";
 import { MIN_SPIN_ROWS, ReelAnimator } from "./reel_animation";
 import type { ReelState, SpinResult } from "./types";
+import { SlotSound } from "./sound";
 
 function byId<T extends HTMLElement>(id: string): T {
     const el = document.getElementById(id);
@@ -31,7 +32,7 @@ async function init(): Promise<void> {
     try {
         topics = await loadTopics("./topics.txt");
     } catch (error) {
-        showError(error instanceof Error ? error.message : "Не удалось загрузить темы.");
+        showError(error instanceof Error ? error.message : "Не вдалось завантажити теми.");
         return;
     }
     if (topics.length < MIN_TOPICS) {
@@ -39,9 +40,21 @@ async function init(): Promise<void> {
         return;
     }
 
+    const sound = new SlotSound();
+    const soundBtn = byId<HTMLButtonElement>("sound-toggle");
+    const renderSound = (): void => {
+        soundBtn.setAttribute("aria-pressed", String(sound.enabled));
+        soundBtn.textContent = sound.enabled ? "Звук: увімк" : "Звук: вимк";
+    };
+    soundBtn.addEventListener("click", () => { sound.setEnabled(!sound.enabled); renderSound(); });
+    renderSound();
+
     const reel = new Reel(viewport, track);
     reel.setTopics(topics, MIN_SPIN_ROWS);
-    const animator = new ReelAnimator(reel);
+    const animator = new ReelAnimator(reel, {
+        onRowPass: () => sound.tick(),
+        onLand: () => sound.land(),
+    });
     reel.observeResize(() => { if (!animator.isRunning) reel.refresh(); });
 
     let state: ReelState = "idle";
@@ -53,6 +66,9 @@ async function init(): Promise<void> {
 
     button.addEventListener("click", async () => {
         if (state !== "idle") return; 
+
+        sound.unlock();
+        sound.lever();
 
         state = "spinning";
         app.dataset.state = state;
@@ -66,6 +82,7 @@ async function init(): Promise<void> {
             if (result.index !== resultIndex) console.error("Візуальний результат не збігся з обраним індексом");
             lastResult = result;
             resultEl.textContent = result.topic;
+            sound.win();
         } catch (error) {
             console.error(error);
             resultEl.textContent = "Щось пішло не так. Спробуйте ще раз.";

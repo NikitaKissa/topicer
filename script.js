@@ -139,10 +139,12 @@
     return steps;
   }
   var ReelAnimator = class {
-    constructor(reel) {
+    constructor(reel, hooks = {}) {
       this.reel = reel;
+      this.hooks = hooks;
     }
     reel;
+    hooks;
     running = false;
     get isRunning() {
       return this.running;
@@ -175,6 +177,8 @@
       this.running = true;
       return new Promise((resolve) => {
         let t0 = null;
+        let lastRow = 0;
+        let landed = false;
         const frame = (now) => {
           if (t0 === null) t0 = now;
           const t = now - t0;
@@ -191,7 +195,16 @@
           } else if (t < TOTAL_MS) {
             offset = distAccel + distCruise + distDecel * easeOutCubic((t - ACCEL_MS - cruiseMs) / DECEL_MS);
           } else {
+            if (!landed) {
+              landed = true;
+              this.hooks.onLand?.();
+            }
             offset = reach - overshoot * easeInOutSine((t - TOTAL_MS) / SETTLE_MS);
+          }
+          const row = Math.round(offset / h);
+          if (row > lastRow) {
+            lastRow = row;
+            this.hooks.onRowPass?.();
           }
           reel.applyTranslate(baseY - offset);
           requestAnimationFrame(frame);
@@ -205,6 +218,91 @@
       reel.setRow(reel.homeRow(index));
       reel.markResult();
       return { index, topic: reel.topicAt(index) };
+    }
+  };
+
+  // src/sound.ts
+  var SlotSound = class {
+    ctx = null;
+    master = null;
+    noiseBuf = null;
+    lastTick = 0;
+    on = true;
+    get enabled() {
+      return this.on;
+    }
+    setEnabled(value) {
+      this.on = value;
+    }
+    unlock() {
+      if (!this.ctx) {
+        const Ctor = window.AudioContext ?? window.webkitAudioContext;
+        if (!Ctor) return;
+        this.ctx = new Ctor();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.5;
+        this.master.connect(this.ctx.destination);
+      }
+      void this.ctx.resume();
+    }
+    lever() {
+      if (!this.ready()) return;
+      this.tone(170, 55, 0.2, "sine", 0.6);
+      this.noise(0.05, 0.35, 1800);
+    }
+    tick() {
+      const ctx = this.ready();
+      if (!ctx || ctx.currentTime - this.lastTick < 0.035) return;
+      this.lastTick = ctx.currentTime;
+      const pitch = 1150 * (0.96 + Math.random() * 0.08);
+      this.tone(pitch, pitch * 0.7, 0.03, "triangle", 0.22);
+    }
+    land() {
+      if (!this.ready()) return;
+      this.tone(130, 45, 0.22, "sine", 0.7);
+      this.noise(0.08, 0.3, 900);
+    }
+    win() {
+      if (!this.ready()) return;
+      [1046.5, 1318.5, 1568].forEach((f, i) => this.tone(f, f, 0.5, "sine", 0.18, 0.07 * i));
+    }
+    ready() {
+      return this.on && this.ctx && this.ctx.state !== "closed" ? this.ctx : null;
+    }
+    tone(f0, f1, dur, type, peak, delay = 0) {
+      const ctx = this.ctx;
+      const t = ctx.currentTime + delay;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f0, t);
+      if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(f1, t + dur);
+      gain.gain.setValueAtTime(1e-4, t);
+      gain.gain.exponentialRampToValueAtTime(peak, t + 4e-3);
+      gain.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+      osc.connect(gain).connect(this.master);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
+    noise(dur, peak, freq) {
+      const ctx = this.ctx;
+      if (!this.noiseBuf) {
+        this.noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.3), ctx.sampleRate);
+        const data = this.noiseBuf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      }
+      const t = ctx.currentTime;
+      const src = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      src.buffer = this.noiseBuf;
+      filter.type = "bandpass";
+      filter.frequency.value = freq;
+      gain.gain.setValueAtTime(peak, t);
+      gain.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+      src.connect(filter).connect(gain).connect(this.master);
+      src.start(t);
+      src.stop(t + dur);
     }
   };
 
@@ -240,9 +338,23 @@
       showError(`\u0423 topics.txt \u043C\u0430\u0454 \u0431\u0443\u0442\u0438 \u043C\u0456\u043D\u0456\u043C\u0443\u043C ${MIN_TOPICS} \u0442\u0435\u043C\u0438, \u0437\u0430\u0440\u0430\u0437: ${topics.length}.`);
       return;
     }
+    const sound = new SlotSound();
+    const soundBtn = byId("sound-toggle");
+    const renderSound = () => {
+      soundBtn.setAttribute("aria-pressed", String(sound.enabled));
+      soundBtn.textContent = sound.enabled ? "\u0417\u0432\u0443\u043A: \u0432\u043A\u043B" : "\u0417\u0432\u0443\u043A: \u0432\u044B\u043A\u043B";
+    };
+    soundBtn.addEventListener("click", () => {
+      sound.setEnabled(!sound.enabled);
+      renderSound();
+    });
+    renderSound();
     const reel = new Reel(viewport, track);
     reel.setTopics(topics, MIN_SPIN_ROWS);
-    const animator = new ReelAnimator(reel);
+    const animator = new ReelAnimator(reel, {
+      onRowPass: () => sound.tick(),
+      onLand: () => sound.land()
+    });
     reel.observeResize(() => {
       if (!animator.isRunning) reel.refresh();
     });
@@ -253,6 +365,8 @@
     button.disabled = false;
     button.addEventListener("click", async () => {
       if (state !== "idle") return;
+      sound.unlock();
+      sound.lever();
       state = "spinning";
       app.dataset.state = state;
       button.setAttribute("aria-disabled", "true");
@@ -263,6 +377,7 @@
         if (result.index !== resultIndex) console.error("\u0412\u0456\u0437\u0443\u0430\u043B\u044C\u043D\u0438\u0439 \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442 \u043D\u0435 \u0437\u0431\u0456\u0433\u0441\u044F \u0437 \u043E\u0431\u0440\u0430\u043D\u0438\u043C \u0456\u043D\u0434\u0435\u043A\u0441\u043E\u043C");
         lastResult = result;
         resultEl.textContent = result.topic;
+        sound.win();
       } catch (error) {
         console.error(error);
         resultEl.textContent = "\u0429\u043E\u0441\u044C \u043F\u0456\u0448\u043B\u043E \u043D\u0435 \u0442\u0430\u043A. \u0421\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0449\u0435 \u0440\u0430\u0437.";

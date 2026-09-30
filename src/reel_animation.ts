@@ -12,6 +12,11 @@ const OVERSHOOT_ROWS = 0.16;
 const easeOutCubic = (u: number): number => 1 - (1 - u) ** 3;
 const easeInOutSine = (u: number): number => -(Math.cos(Math.PI * u) - 1) / 2;
 
+export interface SpinHooks {
+    onRowPass?: () => void;
+    onLand?: () => void;
+}
+
 function planSteps(currentIndex: number, target: number, n: number): number {
     let steps = (((target - currentIndex) % n) + n) % n;
     if (steps < MIN_SPIN_ROWS) steps += n * Math.ceil((MIN_SPIN_ROWS - steps) / n);
@@ -21,7 +26,7 @@ function planSteps(currentIndex: number, target: number, n: number): number {
 export class ReelAnimator {
     private running = false;
 
-    constructor(private readonly reel: Reel) {}
+    constructor(private readonly reel: Reel, private readonly hooks: SpinHooks = {}) {}
 
     get isRunning(): boolean { return this.running; }
 
@@ -58,6 +63,9 @@ export class ReelAnimator {
         this.running = true;
         return new Promise<SpinResult>((resolve) => {
             let t0: number | null = null;
+            let lastRow = 0;
+            let landed = false;
+
             const frame = (now: number): void => {
                 if (t0 === null) t0 = now;
                 const t = now - t0;
@@ -66,6 +74,7 @@ export class ReelAnimator {
                     resolve(this.finish(endRow));
                     return;
                 }
+
                 let offset: number;
                 if (t < ACCEL_MS) {
                     offset = (vmax * t * t) / (2 * ACCEL_MS);
@@ -74,8 +83,16 @@ export class ReelAnimator {
                 } else if (t < TOTAL_MS) {
                     offset = distAccel + distCruise + distDecel * easeOutCubic((t - ACCEL_MS - cruiseMs) / DECEL_MS);
                 } else {
+                    if (!landed) { landed = true; this.hooks.onLand?.(); }
                     offset = reach - overshoot * easeInOutSine((t - TOTAL_MS) / SETTLE_MS);
                 }
+
+                const row = Math.round(offset / h);
+                if (row > lastRow) {
+                    lastRow = row;
+                    this.hooks.onRowPass?.();
+                }
+
                 reel.applyTranslate(baseY - offset);
                 requestAnimationFrame(frame);
             };
